@@ -5,9 +5,10 @@
 
 ## Installation
 
-1. Download the source distribution (zip file) from [dist directory](https://github.com/lihas/NeuroPy/tree/master/dist) or from [PyPi](https://pypi.python.org/pypi/NeuroPy/0.1)
-2. Unzip and navigate to the folder containing `setup.py` and other files
-3. Run the following command: `python setup.py install`
+1. Клоним проект
+2. `py -m venv .venv` для создания виртуального окружения
+3. `.\.venv\Scripts\activate` (Windows) или `source .venv\bin\activate.sh` (Linux)
+4. Из папки с `setup.py`: `pip install .`
 
 ## Usage
 
