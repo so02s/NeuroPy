@@ -1,31 +1,3 @@
-# Copyright (c) 2013, sahil singh
-##
-# All rights reserved.
-##
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
-##
-# * Redistributions of source code must retain the above copyright notice,
-# this list of conditions and the following disclaimer.
-# * Redistributions in binary form must reproduce the above copyright notice,
-# this list of conditions and the following disclaimer in the documentation
-# and/or other materials provided with the distribution.
-# * Neither the name of NeuroPy nor the names of its contributors
-# may be used to endorse or promote products derived from this software
-# without specific prior written permission.
-##
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
-# CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-# PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-# PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-# LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-# NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import serial
 import sys
 from threading import Thread
@@ -79,13 +51,15 @@ class NeuroPy(object):
 
     callBacksDictionary = {}  # keep a track of all callbacks
 
-    def __init__(self, port = None, baudRate=57600, devid=None):
+    def __init__(self, port = None, baudRate=115200, devid=None):
         if port == None:
             platform = sys.platform
             if platform == "win32":
                 port = "COM6"
             elif platform.startswith("linux") or platform == 'darwin':
                 port = "/dev/rfcomm0"
+            else:
+                port = "/dev/cu.MindWaveMobile-SerialPo"
 
         self.__devid = devid
         self.__serialPort = port
@@ -134,6 +108,7 @@ class NeuroPy(object):
             self.connect()
 
         self.__packetsReceived = 0
+        self.__verbosePacketsReceived = 0
         self.__parserThread = Thread(target=self.__packetParser, args=())
         self.__threadRun = True
         self.__parserThread.start()
@@ -153,17 +128,23 @@ class NeuroPy(object):
                 self.__packetsReceived += 1
                 payload = []
                 checksum = 0
-                payloadLength = int(self.__srl.read(1).hex(), 16)
+                payloadLength = int(self.__srl.read(1).hex(), 16) #PLENGTH
+                #print('payloadLength: ' + str(payloadLength))
                 for i in range(payloadLength):
                     tempPacket = self.__srl.read(1).hex()
                     payload.append(tempPacket)
-                    checksum += int(tempPacket, 16)
-                checksum = ~checksum & 0x000000ff
-                if checksum == int(self.__srl.read(1).hex(), 16):
+                    checksum += int(tempPacket, 16) #sum every byte in the payload
+                checksum = ~checksum & 0x000000ff #take the lowest 8 bits and invert them
+                if checksum == int(self.__srl.read(1).hex(), 16): #read the next byte of the package after the payload and check it with the checksum just calculated
                     i = 0
-
+#                    print('payload ' + str(i) + ' = ' + str(payload[i]))
                     while i < payloadLength:
+
+                        while payload[i] == '55': 
+                                i = i+1
+
                         code = payload[i]
+                        #print('packet ' + str(self.__packetsReceived) + ' code==' + str(code))
                         if (code == 'd0'):
                             print("Headset connected!")
                             self.__connected = True
@@ -177,11 +158,19 @@ class NeuroPy(object):
                             print("Headset denied operation!")
                         elif(code == 'd4'):
                             if payload[2] == 0 and not self.__connected:
-                                print("Idle, trying to reconnect");
+                                print("Idle, trying to reconnect")
                                 self.connect()
                         elif(code == '02'):  # poorSignal
                             i = i + 1
                             self.poorSignal = int(payload[i], 16)
+                        elif(code == 'ba'):  # unknown
+                            i = i + 1
+                            self.unknown_ba = int(payload[i], 16)
+#                            print('self.unknown_ba = ' + str(self.unknown_ba))
+                        elif(code == 'bc'):  # unknown
+                            i = i + 1
+                            self.unknown_bc = int(payload[i], 16)
+#                            print('self.unknown_bc = ' + str(self.unknown_bc))
                         elif(code == '04'):  # attention
                             i = i + 1
                             self.attention = int(payload[i], 16)
@@ -193,15 +182,25 @@ class NeuroPy(object):
                             self.blinkStrength = int(payload[i], 16)
                         elif(code == '80'):  # raw value
                             i = i + 1  # for length/it is not used since length =1 byte long and always=2
+                            #print('verbose packet length: ' + str(int(payload[i], 16)) + ' code==' + str(code))
                             i = i + 1
                             val0 = int(payload[i], 16)
                             i = i + 1
-                            self.rawValue = val0 * 256 + int(payload[i], 16)
-                            if self.rawValue > 32768:
-                                self.rawValue = self.rawValue - 65536
+                            rawVal = val0 * 256 + int(payload[i], 16)
+                            if rawVal > 32768:
+                                rawVal = rawVal - 65536
+
+                            self.rawValue = rawVal
+                            #print('self.rawValue = ' + str(self.rawValue))
+
+                                #print('self.rawValue = ' + str(self.rawValue))
                         elif(code == '83'):  # ASIC_EEG_POWER
+                            self.__verbosePacketsReceived += 1
+                            #print('raw packet ' + str(self.__packetsReceived) + ' code==' + str(code))
+                            #print('verbose packet ' + str(self.__verbosePacketsReceived) + ' code==' + str(code))
                             i = i + 1  # for length/it is not used since length =1 byte long and always=2
                             # delta:
+                            #print('verbose packet length: ' + str(int(payload[i], 16)) + ' code==' + str(code))
                             i = i + 1
                             val0 = int(payload[i], 16)
                             i = i + 1
@@ -209,6 +208,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.delta = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.delta = ' + str(self.delta))
                             # theta:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -217,6 +217,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.theta = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.theta = ' + str(self.theta))
                             # lowAlpha:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -225,6 +226,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.lowAlpha = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.lowAlpha = ' + str(self.lowAlpha))
                             # highAlpha:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -233,6 +235,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.highAlpha = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.highAlpha = ' + str(self.highAlpha))
                             # lowBeta:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -241,6 +244,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.lowBeta = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.lowBeta = ' + str(self.lowBeta))
                             # highBeta:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -249,6 +253,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.highBeta = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.highBeta = ' + str(self.highBeta))
                             # lowGamma:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -257,6 +262,7 @@ class NeuroPy(object):
                             i = i + 1
                             self.lowGamma = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.lowGamma = ' + str(self.lowGamma))
                             # midGamma:
                             i = i + 1
                             val0 = int(payload[i], 16)
@@ -265,9 +271,12 @@ class NeuroPy(object):
                             i = i + 1
                             self.midGamma = val0 * 65536 + \
                                 val1 * 256 + int(payload[i], 16)
+                            #print('self.midGamma = ' + str(self.midGamma))
                         else:
                             pass
                         i = i + 1
+                else:
+                    print('wrong checksum!!!')
 
     def stop(self):
         # Stops a running parser thread
@@ -287,6 +296,10 @@ class NeuroPy(object):
     @property
     def packetsReceived(self):
         return self.__packetsReceived
+    
+    @property
+    def verbosePacketsReceived(self):
+        return self.__verbosePacketsReceived
 
     @property
     def bytesAvailable(self):
