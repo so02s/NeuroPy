@@ -1,8 +1,7 @@
 # NeuroPy
 
-NeuroPy library written in python to connect, interact and get data from **NeuroSky's MindWave** EEG headset.
-
-This library is based on the mindwave mindset communication protocol published by [Neurosky](http:://neurosky.com) and is tested with Neurosky Mindwave EEG headset.
+Форк от старой ветки, обновлено для работы с Python 3.13
+При подключении Mindwave Mobile 2 к Windows НЕОБХОДИМО в диспетчере принтеров -> свойства -> службы включить SSP (для подключения устройства как COM)
 
 ## Installation
 

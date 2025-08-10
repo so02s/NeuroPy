@@ -27,7 +27,6 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import serial
-import time
 import sys
 from threading import Thread
 
@@ -116,15 +115,15 @@ class NeuroPy(object):
         # Try to connect to serial port and start a separate thread
         # for data collection
         if self.__threadRun == True:
-            print "Mindwave has already started!"
+            print("Mindwave has already started!")
             return
 
         if self.__srl == None:
             try:
                 self.__srl = serial.Serial(
                     self.__serialPort, self.__serialBaudRate)
-            except serial.serialutil.SerialException, e:
-                print str(e)
+            except serial.serialutil.SerialException as e:
+                print(str(e))
                 return
         else:
             self.__srl.open()
@@ -132,7 +131,7 @@ class NeuroPy(object):
         self.__srl.flushInput()
 
         if self.__devid:
-            self.connect();
+            self.connect()
 
         self.__packetsReceived = 0
         self.__parserThread = Thread(target=self.__packetParser, args=())
@@ -142,11 +141,11 @@ class NeuroPy(object):
     def __packetParser(self):
         "packetParser runs continously in a separate thread to parse packets from mindwave and update the corresponding variables"
         while self.__threadRun:
-            p1 = self.__srl.read(1).encode("hex")  # read first 2 packets
-            p2 = self.__srl.read(1).encode("hex")
+            p1 = self.__srl.read(1).hex()  # read first 2 packets
+            p2 = self.__srl.read(1).hex()
             while (p1 != 'aa' or p2 != 'aa') and self.__threadRun:
                 p1 = p2
-                p2 = self.__srl.read(1).encode("hex")
+                p2 = self.__srl.read(1).hex()
             else:
                 if self.__threadRun == False:
                     break
@@ -154,13 +153,13 @@ class NeuroPy(object):
                 self.__packetsReceived += 1
                 payload = []
                 checksum = 0
-                payloadLength = int(self.__srl.read(1).encode("hex"), 16)
+                payloadLength = int(self.__srl.read(1).hex(), 16)
                 for i in range(payloadLength):
-                    tempPacket = self.__srl.read(1).encode("hex")
+                    tempPacket = self.__srl.read(1).hex()
                     payload.append(tempPacket)
                     checksum += int(tempPacket, 16)
                 checksum = ~checksum & 0x000000ff
-                if checksum == int(self.__srl.read(1).encode("hex"), 16):
+                if checksum == int(self.__srl.read(1).hex(), 16):
                     i = 0
 
                     while i < payloadLength:
@@ -179,7 +178,7 @@ class NeuroPy(object):
                         elif(code == 'd4'):
                             if payload[2] == 0 and not self.__connected:
                                 print("Idle, trying to reconnect");
-                                self.connect();
+                                self.connect()
                         elif(code == '02'):  # poorSignal
                             i = i + 1
                             self.poorSignal = int(payload[i], 16)
@@ -306,7 +305,7 @@ class NeuroPy(object):
     def attention(self, value):
         self.__attention = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("attention"):
+        if "attention" in self.callBacksDictionary:
             self.callBacksDictionary["attention"](self.__attention)
 
     # meditation
@@ -319,7 +318,7 @@ class NeuroPy(object):
     def meditation(self, value):
         self.__meditation = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("meditation"):
+        if "meditation" in self.callBacksDictionary:
             self.callBacksDictionary["meditation"](self.__meditation)
 
     # rawValue
@@ -332,7 +331,7 @@ class NeuroPy(object):
     def rawValue(self, value):
         self.__rawValue = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("rawValue"):
+        if "rawValue" in self.callBacksDictionary:
             self.callBacksDictionary["rawValue"](self.__rawValue)
 
     # delta
@@ -345,7 +344,7 @@ class NeuroPy(object):
     def delta(self, value):
         self.__delta = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("delta"):
+        if "delta" in self.callBacksDictionary:
             self.callBacksDictionary["delta"](self.__delta)
 
     # theta
@@ -358,7 +357,7 @@ class NeuroPy(object):
     def theta(self, value):
         self.__theta = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("theta"):
+        if "theta" in self.callBacksDictionary:
             self.callBacksDictionary["theta"](self.__theta)
 
     # lowAlpha
@@ -371,7 +370,7 @@ class NeuroPy(object):
     def lowAlpha(self, value):
         self.__lowAlpha = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("lowAlpha"):
+        if "lowAlpha" in self.callBacksDictionary:
             self.callBacksDictionary["lowAlpha"](self.__lowAlpha)
 
     # highAlpha
@@ -384,7 +383,7 @@ class NeuroPy(object):
     def highAlpha(self, value):
         self.__highAlpha = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("highAlpha"):
+        if "highAlpha" in self.callBacksDictionary:
             self.callBacksDictionary["highAlpha"](self.__highAlpha)
 
     # lowBeta
@@ -397,7 +396,7 @@ class NeuroPy(object):
     def lowBeta(self, value):
         self.__lowBeta = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("lowBeta"):
+        if "lowBeta" in self.callBacksDictionary:
             self.callBacksDictionary["lowBeta"](self.__lowBeta)
 
     # highBeta
@@ -410,7 +409,7 @@ class NeuroPy(object):
     def highBeta(self, value):
         self.__highBeta = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("highBeta"):
+        if "highBeta" in self.callBacksDictionary:
             self.callBacksDictionary["highBeta"](self.__highBeta)
 
     # lowGamma
@@ -423,7 +422,7 @@ class NeuroPy(object):
     def lowGamma(self, value):
         self.__lowGamma = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("lowGamma"):
+        if "lowGamma" in self.callBacksDictionary:
             self.callBacksDictionary["lowGamma"](self.__lowGamma)
 
     # midGamma
@@ -436,7 +435,7 @@ class NeuroPy(object):
     def midGamma(self, value):
         self.__midGamma = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("midGamma"):
+        if "midGamma" in self.callBacksDictionary:
             self.callBacksDictionary["midGamma"](self.__midGamma)
 
     # poorSignal
@@ -449,7 +448,7 @@ class NeuroPy(object):
     def poorSignal(self, value):
         self.__poorSignal = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("poorSignal"):
+        if "poorSignal" in self.callBacksDictionary:
             self.callBacksDictionary["poorSignal"](self.__poorSignal)
 
     # blinkStrength
@@ -462,5 +461,5 @@ class NeuroPy(object):
     def blinkStrength(self, value):
         self.__blinkStrength = value
         # if callback has been set, execute the function
-        if self.callBacksDictionary.has_key("blinkStrength"):
+        if "blinkStrength" in self.callBacksDictionary:
             self.callBacksDictionary["blinkStrength"](self.__blinkStrength)
